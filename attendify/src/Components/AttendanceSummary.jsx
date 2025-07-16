@@ -1,64 +1,57 @@
 import React, { useState } from "react";
 import { FaFilter } from "react-icons/fa";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 const AttendanceSummary = ({ attendanceData }) => {
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 10; // Number of rows per page
+  const rowsPerPage = 10;
 
-  // Filter state
   const [showFilter, setShowFilter] = useState(false);
   const [employeeNameFilter, setEmployeeNameFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState(""); // <--- NEW: State for status filter
+  const [statusFilter, setStatusFilter] = useState("");
 
-  // Filter the attendance data
   const filteredData = attendanceData.filter((entry) => {
     const matchesName = employeeNameFilter
       ? entry.employeeName.toLowerCase().includes(employeeNameFilter.toLowerCase())
       : true;
     const matchesDate = dateFilter ? entry.date === dateFilter : true;
-    // <--- NEW: Status filter logic
     const matchesStatus = statusFilter
       ? entry.status.toLowerCase() === statusFilter.toLowerCase()
       : true;
 
-    return matchesName && matchesDate && matchesStatus; // <--- NEW: Include matchesStatus in return
+    return matchesName && matchesDate && matchesStatus;
   });
 
-  // Calculate pagination values based on filtered data
   const totalEntries = filteredData.length;
   const totalPages = Math.ceil(totalEntries / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = Math.min(startIndex + rowsPerPage, totalEntries);
   const paginatedData = filteredData.slice(startIndex, endIndex);
 
-  // Handle page change
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
   };
 
-  // Reset page to 1 when filters change
   const applyFilters = () => {
-    setCurrentPage(1); // Reset to first page when filters are applied
-    setShowFilter(false); // Close the filter form
-  };
-
-  // Clear filters
-  const clearFilters = () => {
-    setEmployeeNameFilter("");
-    setDateFilter("");
-    setStatusFilter(""); // <--- NEW: Clear status filter
-    setCurrentPage(1); // Reset to first page
+    setCurrentPage(1);
     setShowFilter(false);
   };
 
-  // Generate page numbers for display
+  const clearFilters = () => {
+    setEmployeeNameFilter("");
+    setDateFilter("");
+    setStatusFilter("");
+    setCurrentPage(1);
+    setShowFilter(false);
+  };
+
   const getPageNumbers = () => {
     const pageNumbers = [];
-    const maxPagesToShow = 5; // Show up to 5 page numbers at a time
+    const maxPagesToShow = 5;
     const halfRange = Math.floor(maxPagesToShow / 2);
 
     let startPage = Math.max(1, currentPage - halfRange);
@@ -74,26 +67,51 @@ const AttendanceSummary = ({ attendanceData }) => {
     return pageNumbers;
   };
 
+  const exportToExcel = () => {
+    const exportData = filteredData.map((entry) => ({
+      "Employee Code": entry.employeeCode,
+      "Employee Name": entry.employeeName,
+      "Date": entry.date,
+      "Working Hours": entry.hours,
+      "Status": entry.status,
+      "Reason": entry.reason,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, `attendance_summary.xlsx`);
+  };
+
   return (
     <div className="bg-[#FFFFFF] p-6 rounded-lg border border-gray-300 shadow-md">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-[#000000] font-semibold text-lg">
           Attendance Summary
         </h3>
-        <button
-          onClick={() => setShowFilter(!showFilter)}
-          className="flex items-center gap-2 bg-[#2563EB] text-white px-3 py-1 rounded hover:bg-[#1DB954]"
-        >
-          <FaFilter />
-          Filter
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={exportToExcel}
+            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+          >
+            Export to Excel
+          </button>
+          <button
+            onClick={() => setShowFilter(!showFilter)}
+            className="flex items-center gap-2 bg-[#2563EB] text-white px-3 py-1 rounded hover:bg-[#1DB954]"
+          >
+            <FaFilter />
+            Filter
+          </button>
+        </div>
       </div>
 
-      {/* Filter Form */}
       {showFilter && (
         <div className="mb-4 p-4 bg-[#F9FAFB] rounded-lg border border-gray-300">
           <div className="flex flex-col gap-4">
-            {/* Employee Name Filter */}
             <div>
               <label className="text-[#000000] text-sm block mb-1">
                 Employee Name
@@ -107,7 +125,6 @@ const AttendanceSummary = ({ attendanceData }) => {
               />
             </div>
 
-            {/* Date Filter */}
             <div>
               <label className="text-[#000000] text-sm block mb-1">
                 Date (YYYY-MM-DD)
@@ -120,26 +137,21 @@ const AttendanceSummary = ({ attendanceData }) => {
               />
             </div>
 
-            {/* <--- NEW: Status Filter (Dropdown) */}
             <div>
-              <label className="text-[#000000] text-sm block mb-1">
-                Status
-              </label>
+              <label className="text-[#000000] text-sm block mb-1">Status</label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full bg-[#FFFFFF] text-[#000000] px-3 py-1 rounded border border-gray-300 focus:outline-none focus:border-[#1DB954]"
               >
-                <option value="">All Statuses</option> {/* Default option */}
+                <option value="">All Statuses</option>
                 <option value="working day">Working Day</option>
                 <option value="partial">Partial</option>
                 <option value="absent">Absent</option>
-                <option value="weekend">Weekend</option> {/* Assuming 'Weekend' is a possible status */}
+                <option value="weekend">Weekend</option>
               </select>
             </div>
-            {/* NEW: End Status Filter */}
 
-            {/* Filter and Clear Buttons */}
             <div className="flex gap-2">
               <button
                 onClick={applyFilters}
@@ -191,7 +203,7 @@ const AttendanceSummary = ({ attendanceData }) => {
                         ${entry.status.toLowerCase() === "partial" ? "bg-[#FEF9C3] text-[#854D0E]" : ""}
                         ${entry.status.toLowerCase() === "absent" ? "bg-red-100 text-[#991B1B]" : ""}
                         ${entry.status.toLowerCase() === "weekend" ? "bg-blue-200 text-[#000000]" : ""}
-                       `}
+                      `}
                     >
                       {entry.status}
                     </span>
@@ -204,20 +216,15 @@ const AttendanceSummary = ({ attendanceData }) => {
         </table>
       </div>
 
-      {/* Pagination */}
       {totalEntries > 0 && (
         <div className="flex justify-between items-center mt-4 text-[#4B5563] text-sm">
-          {/* Showing X to Y of Z entries */}
           <div>
             Showing {startIndex + 1} to {endIndex} of {totalEntries} entries
             {filteredData.length < attendanceData.length && (
               <span> (filtered from {attendanceData.length} total entries)</span>
             )}
           </div>
-
-          {/* Pagination Controls */}
           <div className="flex items-center gap-2">
-            {/* Previous Button */}
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
@@ -229,8 +236,6 @@ const AttendanceSummary = ({ attendanceData }) => {
             >
               Previous
             </button>
-
-            {/* Page Numbers */}
             {getPageNumbers().map((page) => (
               <button
                 key={page}
@@ -244,8 +249,6 @@ const AttendanceSummary = ({ attendanceData }) => {
                 {page}
               </button>
             ))}
-
-            {/* Next Button */}
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}

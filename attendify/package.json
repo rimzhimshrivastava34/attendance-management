@@ -15,11 +15,13 @@
     "calendar": "^0.1.1",
     "chrono-node": "^2.8.2",
     "date-fns": "^4.1.0",
+    "file-saver": "^2.0.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-icons": "^5.5.0",
     "recharts": "^2.15.3",
-    "tailwindcss": "^4.1.7"
+    "tailwindcss": "^4.1.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
