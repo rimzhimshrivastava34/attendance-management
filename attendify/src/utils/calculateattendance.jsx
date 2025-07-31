@@ -4,12 +4,9 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
   const missedPunchData = {};
   const errors = [];
 
-  console.log("attendance data", attendanceData);
-
   // Normalize date formats to YYYY-MM-DD
   const normalizeDate = (dateStr, empCode) => {
     let parsedDate;
-    // Format: "Mon 02-Jan-25" or "02-Jan-25"
     if (dateStr.match(/^\w+\s+\d{1,2}-\w{3}-\d{2}$/) || dateStr.match(/^\d{1,2}-\w{3}-\d{2}$/)) {
       const [_, day, month, year] = dateStr.match(/(\d{1,2})-(\w{3})-(\d{2})/);
       const monthMap = {
@@ -17,30 +14,21 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
         Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
       };
       parsedDate = new Date(`20${year}-${monthMap[month]}-${day.padStart(2, '0')}`);
-    }
-    // Format: "02-Jan"
-    else if (dateStr.match(/^\d{1,2}-\w{3}$/)) {
+    } else if (dateStr.match(/^\d{1,2}-\w{3}$/)) {
       const [day, month] = dateStr.split('-');
       const monthMap = {
         Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
         Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
       };
       parsedDate = new Date(`2025-${monthMap[month]}-${day.padStart(2, '0')}`);
-    }
-    // Format: "DD/MM/YYYY" or "DD-MM-YYYY"
-    else if (dateStr.match(/^\d{2}[\/-]\d{2}[\/-]\d{4}$/)) {
+    } else if (dateStr.match(/^\d{2}[\/-]\d{2}[\/-]\d{4}$/)) {
       const [day, month, year] = dateStr.split(/[\/-]/).map(Number);
       parsedDate = new Date(`${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`);
-    }
-    // Format: "YYYY-MM-DD" (already in desired format)
-    else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      parsedDate = new Date(dateStr);
+    } else {
       parsedDate = new Date(dateStr);
     }
-    // Fallback: Try parsing with Date directly
-    else {
-      parsedDate = new Date(dateStr);
-    }
-
     if (isNaN(parsedDate)) {
       return null;
     }
@@ -52,7 +40,6 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
   biometricParsed.forEach((entry) => {
     const empCode = entry.empCode;
     const empName = entry.empName;
-
     if (!empCode) {
       errors.push("Missing employee code in biometric data entry");
       return;
@@ -60,7 +47,6 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
     if (!empName) {
       errors.push(`Missing employee name for empCode ${empCode} in biometric data`);
     }
-
     if (!biometricByEmployee[empCode]) {
       biometricByEmployee[empCode] = [];
     }
@@ -77,7 +63,6 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
   timesheetParsed.forEach((entry) => {
     const empCode = entry.empCode;
     const empName = entry.empName;
-
     if (!empCode) {
       errors.push("Missing employee code in timesheet data entry");
       return;
@@ -85,7 +70,6 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
     if (!empName) {
       errors.push(`Missing employee name for empCode ${empCode} in timesheet data`);
     }
-
     entry.attendance.forEach((att) => {
       const normalizedDate = normalizeDate(att.date, empCode);
       if (normalizedDate) {
@@ -112,10 +96,9 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
     });
   });
   const allDates = Array.from(allDatesSet).sort();
-
   if (allDates.length === 0) {
     errors.push("No valid dates found in biometric or timesheet data. Using current date as fallback.");
-    allDates.push(new Date().toISOString().split('T')[0]); // Fallback to today: "2025-05-31"
+    allDates.push(new Date().toISOString().split('T')[0]);
   }
 
   // Collect all unique employee codes
@@ -125,15 +108,6 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
   });
   timesheetParsed.forEach((t) => {
     if (t.empCode) empCodes.add(t.empCode);
-  });
-
-  // Check for employees with no data
-  empCodes.forEach((empCode) => {
-    const hasBiometric = biometricByEmployee[empCode]?.length > 0;
-    const hasTimesheet = Object.keys(timesheetLookup).some((key) => key.startsWith(`${empCode}-`));
-    if (!hasBiometric && !hasTimesheet) {
-      // No action needed
-    }
   });
 
   const isWeekend = (date) => {
@@ -158,18 +132,16 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
     const biometricEntry = biometricParsed.find((entry) => entry.empCode === empCode);
     const timesheetEntry = timesheetParsed.find((entry) => entry.empCode === empCode);
     const employeeName = biometricEntry?.empName || timesheetEntry?.empName || "Unknown";
-
     if (!biometricEntry?.empName && !timesheetEntry?.empName) {
       errors.push(`No employee name found for empCode ${empCode} in either biometric or timesheet data`);
     }
-
     missedPunchData[empCode] = {
       missedPunches: 0,
       absentDays: 0,
       WorkingDays: 0,
       partialDays: 0,
+      remoteDays: 0, // ADDED for summary
     };
-
     allDates.forEach((date) => {
       const employee = {
         employeeCode: empCode,
@@ -180,7 +152,6 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
         hours: 0,
         isMissedPunch: false,
       };
-
       if (isWeekend(date)) {
         employee.status = 'Weekend';
         employee.reason = `Weekend: Date (${date}) is a Saturday or Sunday.`;
@@ -188,29 +159,23 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
         const punches = (biometricByEmployee[empCode] || [])
           .filter((entry) => entry.date === date)
           .sort((a, b) => new Date(`${date} ${a.time}`) - new Date(`${date} ${b.time}`));
-
         const punchCount = punches.length;
         const timesheetKey = `${empCode}-${date}`;
         const tsEntry = timesheetLookup[timesheetKey];
-
         if (punchCount >= 2) {
-          // Calculate duration from biometric punches
           const punchIn = punches[0].time;
           const punchOut = punches[punchCount - 1].time;
           const punchInTime = new Date(`${date} ${punchIn}`);
           const punchOutTime = new Date(`${date} ${punchOut}`);
-
           if (!isNaN(punchInTime) && !isNaN(punchOutTime) && punchOutTime > punchInTime) {
             const duration = (punchOutTime - punchInTime) / (1000 * 60 * 60);
             employee.hours = parseFloat(duration.toFixed(1));
-
             if (duration >= workingThreshold) {
-              // Biometric duration meets the threshold
               employee.status = 'Working Day';
               employee.reason = `Biometric duration (${duration.toFixed(1)} hrs) ≥ ${workingThreshold} hrs.`;
               missedPunchData[empCode].WorkingDays++;
             } else {
-              // Biometric duration is less than workingThreshold, fall back to timesheet
+              // fallback to timesheet if duration < working threshold
               fallbackToTimesheet(
                 tsEntry,
                 employee,
@@ -237,7 +202,6 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
             );
           }
         } else if (punchCount === 1) {
-          // Single punch: Fall back to timesheet
           employee.isMissedPunch = true;
           missedPunchData[empCode].missedPunches++;
           fallbackToTimesheet(
@@ -252,7 +216,7 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
             `Single biometric punch detected.`
           );
         } else {
-          // No biometric data: Fall back to timesheet
+          // KEY POINT: Here, fallback will set Remote Entry if timesheet hours are sufficient
           fallbackToTimesheet(
             tsEntry,
             employee,
@@ -273,6 +237,7 @@ export function calculateAttendance({ biometricParsed, timesheetParsed, threshol
   return { attendanceData, summaryData: missedPunchData, errors };
 }
 
+// Updated fallbackToTimesheet with improved Remote Entry logic and count
 function fallbackToTimesheet(
   entry,
   employee,
@@ -284,25 +249,42 @@ function fallbackToTimesheet(
   parseTimesheetHours,
   punchMsg = ''
 ) {
+  // Only consider Remote Entry when there's absolutely no biometric data for the day
+  const hasNoBiometricData = punchMsg.includes('No biometric data available');
+  
   if (entry && entry.status) {
-    // Timesheet data is available, calculate hours
     const hours = parseTimesheetHours(entry.status);
     employee.hours = parseFloat(hours.toFixed(1));
-    if (hours >= partialThreshold) {
+    
+    // Handle Remote Entry case - only when no biometric data at all
+    if (hasNoBiometricData) {
+      if (hours >= workingThreshold) {
+        employee.status = 'Remote Entry';
+        employee.reason = `No biometric data - marked as full remote work day. Timesheet hours: ${employee.hours} hrs.`;
+        missedPunchData[empCode].remoteDays = (missedPunchData[empCode].remoteDays || 0) + 1;
+      } else if (hours >= partialThreshold) {
+        employee.status = 'Remote Entry';
+        employee.reason = `No biometric data - marked as partial remote work. Timesheet hours: ${employee.hours} hrs.`;
+        missedPunchData[empCode].remoteDays = (missedPunchData[empCode].remoteDays || 0) + 1;
+      } else {
+        employee.status = 'Absent';
+        employee.reason = `No biometric data and insufficient timesheet hours (${hours} hrs < ${partialThreshold} hrs).`;
+        missedPunchData[empCode].absentDays++;
+      }
+    } else if (hours >= workingThreshold) {
       employee.status = 'Working Day';
-      employee.reason = `Timesheet hours (${employee.hours}) ≥ ${partialThreshold}. ${punchMsg}`;
+      employee.reason = `Timesheet hours (${employee.hours}) ≥ ${workingThreshold} hrs. ${punchMsg}`;
       missedPunchData[empCode].WorkingDays++;
-    } else if (hours > absentThreshold && hours < partialThreshold) {
+    } else if (hours >= partialThreshold && hours < workingThreshold) {
       employee.status = 'Partial';
-      employee.reason = `Timesheet hours (${employee.hours}) between ${absentThreshold} and ${partialThreshold}. ${punchMsg}`;
+      employee.reason = `Timesheet hours (${employee.hours}) between ${partialThreshold} and ${workingThreshold} hrs. ${punchMsg}`;
       missedPunchData[empCode].partialDays++;
     } else {
       employee.status = 'Absent';
-      employee.reason = `Timesheet hours (${employee.hours}) ≤ ${absentThreshold}. ${punchMsg}`;
+      employee.reason = `Insufficient hours: ${employee.hours} hrs (< ${partialThreshold} hrs). ${punchMsg}`;
       missedPunchData[empCode].absentDays++;
     }
   } else {
-    // No timesheet data either
     employee.status = 'Absent';
     employee.reason = `No timesheet data available. ${punchMsg}`;
     missedPunchData[empCode].absentDays++;

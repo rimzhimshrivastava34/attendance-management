@@ -89,9 +89,7 @@ const AttendanceSummary = ({ attendanceData }) => {
   return (
     <div className="bg-[#FFFFFF] p-6 rounded-lg border border-gray-300 shadow-md">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-[#000000] font-semibold text-lg">
-          Attendance Summary
-        </h3>
+        <h3 className="text-[#000000] font-semibold text-lg">Attendance Summary</h3>
         <div className="flex gap-2">
           <button
             onClick={exportToExcel}
@@ -113,9 +111,7 @@ const AttendanceSummary = ({ attendanceData }) => {
         <div className="mb-4 p-4 bg-[#F9FAFB] rounded-lg border border-gray-300">
           <div className="flex flex-col gap-4">
             <div>
-              <label className="text-[#000000] text-sm block mb-1">
-                Employee Name
-              </label>
+              <label className="text-[#000000] text-sm block mb-1">Employee Name</label>
               <input
                 type="text"
                 value={employeeNameFilter}
@@ -126,9 +122,7 @@ const AttendanceSummary = ({ attendanceData }) => {
             </div>
 
             <div>
-              <label className="text-[#000000] text-sm block mb-1">
-                Date (YYYY-MM-DD)
-              </label>
+              <label className="text-[#000000] text-sm block mb-1">Date (YYYY-MM-DD)</label>
               <input
                 type="date"
                 value={dateFilter}
@@ -145,10 +139,11 @@ const AttendanceSummary = ({ attendanceData }) => {
                 className="w-full bg-[#FFFFFF] text-[#000000] px-3 py-1 rounded border border-gray-300 focus:outline-none focus:border-[#1DB954]"
               >
                 <option value="">All Statuses</option>
-                <option value="working day">Working Day</option>
-                <option value="partial">Partial</option>
-                <option value="absent">Absent</option>
-                <option value="weekend">Weekend</option>
+                <option value="Working Day">Working Day</option>
+                <option value="Partial">Partial</option>
+                <option value="Absent">Absent</option>
+                <option value="Weekend">Weekend</option>
+                <option value="Remote Entry">Remote Entry</option>
               </select>
             </div>
 
@@ -203,6 +198,7 @@ const AttendanceSummary = ({ attendanceData }) => {
                         ${entry.status.toLowerCase() === "partial" ? "bg-[#FEF9C3] text-[#854D0E]" : ""}
                         ${entry.status.toLowerCase() === "absent" ? "bg-red-100 text-[#991B1B]" : ""}
                         ${entry.status.toLowerCase() === "weekend" ? "bg-blue-200 text-[#000000]" : ""}
+                        ${entry.status.toLowerCase() === "remote entry" ? "bg-purple-200 text-[#4B0082]" : ""}
                       `}
                     >
                       {entry.status}
