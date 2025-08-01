@@ -4,7 +4,6 @@ from pydantic import BaseModel, EmailStr
 from typing import Dict, List, Any
 import logging
 from routers.email import send_stats_email_logic, send_detailed_stats_email_logic
-from routers import chat  # Import the chat router
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -22,8 +21,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include the chat router
-app.include_router(chat.router)
 
 # Pydantic models for email (remain the same)
 class SummaryStats(BaseModel):
