@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        IMAGE_TAG      = "${env.BUILD_NUMBER}"
         FRONTEND_IMAGE = "rimzhimshri/attendance-frontend"
         BACKEND_IMAGE  = "rimzhimshri/attendance-backend"
     }
@@ -14,12 +14,21 @@ pipeline {
             }
         }
 
+        stage('Provide .env File') {
+            steps {
+                configFileProvider([configFile(fileId: 'env_file', variable: 'ENV_PATH')]) {
+                    // This makes the env file available as $ENV_PATH
+                    sh 'cp "$ENV_PATH" .env'  // Copy it to workspace for use in docker run
+                }
+            }
+        }
+
         stage('Build Docker Images') {
             parallel {
                 stage('Build Frontend') {
                     steps {
-                        script {
-                             
+                        dir('frontend') {
+                            script {
                                 sh "docker build -t $FRONTEND_IMAGE:$IMAGE_TAG ."
                             }
                         }
@@ -28,8 +37,8 @@ pipeline {
 
                 stage('Build Backend') {
                     steps {
-                        script {
-                            dir('attendify/backend') {
+                        dir('backend') {
+                            script {
                                 sh "docker build -t $BACKEND_IMAGE:$IMAGE_TAG ."
                             }
                         }
@@ -57,8 +66,8 @@ pipeline {
                     sh "docker rm -f attendify-frontend || true"
 
                     sh """
-                        docker run -d --name attendify-backend -p 5000:5000 $BACKEND_IMAGE:$IMAGE_TAG
-                        docker run -d --name attendify-frontend -p 3001:3001 $FRONTEND_IMAGE:$IMAGE_TAG
+                        docker run --env-file .env -d --name attendify-backend -p 5000:5000 $BACKEND_IMAGE:$IMAGE_TAG
+                        docker run --env-file .env -d --name attendify-frontend -p 3001:3001 $FRONTEND_IMAGE:$IMAGE_TAG
                     """
                 }
             }
@@ -76,4 +85,4 @@ pipeline {
             echo '❌ Deployment failed!'
         }
     }
-
+}
